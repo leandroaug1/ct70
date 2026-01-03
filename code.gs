@@ -7,18 +7,20 @@
 const DB_CONFIG = {
   // ID da sua planilha
   ID: "1brTjhihRXDJncbKGxq9M3aAJmi1E4UytB_F5KDxRS3E", 
-  // Nome exato da aba
+  // Nome exato da aba (Deve ser igual na planilha)
   TABELA: "CT_70_Status" 
 };
 
 function doGet() {
-  // Agora aponta para o arquivo 'Index'
   return HtmlService.createHtmlOutputFromFile('Index')
     .setTitle('ERP Manager | CT70')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
 
+/**
+ * API DO SISTEMA
+ */
 function api(endpoint, payload) {
   const lock = LockService.getScriptLock();
   try {
@@ -59,7 +61,7 @@ function response(data) { return { success: true, data: data }; }
 function errorResponse(msg) { return { success: false, error: msg }; }
 
 // =========================================================================
-// SERVICE - REGRAS DE NEGÓCIO
+// SERVICE - REGRAS DE NEGÓCIO COM PROTEÇÃO DE ERRO
 // =========================================================================
 class CT70Service {
   constructor() {
@@ -69,16 +71,15 @@ class CT70Service {
   getDashboardData() {
     const rawData = this.repo.findAll();
     
-    // Proteção contra planilha vazia
     if (!rawData || rawData.length < 2) {
-      Logger.log("Planilha vazia ou apenas cabeçalho.");
+      Logger.log("Aviso: Planilha vazia ou sem cabeçalho.");
       return [];
     }
 
     const headers = rawData[0].map(h => String(h).trim().toLowerCase());
     const rows = rawData.slice(1);
 
-    // Mapeamento Inteligente
+    // Mapeamento Inteligente (Aceita variações de nome)
     const mapIndex = (chaves) => {
       for (let chave of chaves) {
         const idx = headers.indexOf(chave.toLowerCase());
@@ -88,9 +89,9 @@ class CT70Service {
     };
 
     const idx = {
-      id: mapIndex(['ordem', 'os', 'id']),
+      id: mapIndex(['ordem', 'os', 'id', 'ticket']),
       statusFinal: mapIndex(['status final']),
-      obsFluxo: mapIndex(['observação fluxo', 'observacao fluxo']),
+      obsFluxo: mapIndex(['observação fluxo', 'observacao fluxo', 'obs fluxo']),
       permanencia: mapIndex(['permanência', 'permanencia']),
       aging: mapIndex(['aging fluxo', 'aging']),
       status: mapIndex(['status', 'obs custom']),
@@ -100,13 +101,13 @@ class CT70Service {
     };
 
     if (idx.id === -1) {
-      throw new Error(`Coluna 'Ordem' não encontrada. Verifique os cabeçalhos.`);
+      throw new Error(`Coluna 'Ordem' não encontrada na planilha. Cabeçalhos lidos: ${headers.join(', ')}`);
     }
 
     return rows.map((r, i) => {
       // Pula linhas sem ID
-      if (!r[idx.id] || String(r[idx.id]).trim() === "") return null;
-
+      if (!r[idx.id]) return null;
+      
       const getVal = (index) => (index > -1 && r[index] !== undefined) ? r[index] : "";
 
       const obj = { 
@@ -130,7 +131,8 @@ class CT70Service {
   validarTickets(ids) {
     const colTop = this.repo.findColIndex(['top permanência', 'top permanencia']);
     
-    if (colTop === -1) throw new Error("Crie a coluna 'Top Permanência' na planilha para validar.");
+    // Se não achar a coluna, lança erro explicativo
+    if (colTop === -1) throw new Error("Crie a coluna 'Top Permanência' na planilha (Coluna I) para validar.");
 
     const colObs = this.repo.findColIndex(['observação fluxo', 'observacao fluxo']);
 
@@ -145,7 +147,7 @@ class CT70Service {
 
   atualizarStatus(id, novoStatus) {
     const colStatus = this.repo.findColIndex(['status']);
-    if (colStatus === -1) throw new Error("Coluna 'Status' não encontrada.");
+    if (colStatus === -1) throw new Error("Coluna 'Status' não encontrada na planilha.");
     
     this.repo.updateCell(id, colStatus, () => novoStatus);
     return true;
@@ -173,7 +175,7 @@ class Repository {
     try {
       this.ss = SpreadsheetApp.openById(ssId);
       this.sheet = this.ss.getSheetByName(sheetName);
-      if (!this.sheet) throw new Error(`Aba '${sheetName}' não encontrada.`);
+      if (!this.sheet) throw new Error(`Aba '${sheetName}' não existe.`);
     } catch(e) {
       throw new Error(`Erro Planilha: ${e.message}`);
     }
@@ -198,7 +200,7 @@ class Repository {
   }
 
   findRowIndex(uniqueId) {
-    const colId = this.findColIndex(['ordem', 'os', 'id']);
+    const colId = this.findColIndex(['ordem', 'os', 'id', 'ticket']);
     if (colId === -1) return -1;
     
     const data = this.sheet.getDataRange().getValues();
