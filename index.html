@@ -33,14 +33,12 @@
     @keyframes slideIn { from{transform:translateX(100%)} to{transform:translateX(0)} }
     #loader { position:fixed; inset:0; background:rgba(255,255,255,0.9); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:1000; }
     .spinner { width:40px; height:40px; border:4px solid #eee; border-top-color:var(--primary); border-radius:50%; animation:spin 1s linear infinite; }
-    @keyframes spin { to{transform:rotate(360deg)} }
-    .badge { padding:4px 8px; border-radius:4px; font-size:11px; font-weight:700; }
     tr.valid { background:#f6fffa; }
     tr.valid td { color:#137333; }
   </style>
 </head>
 <body>
-  <div id="loader"><div class="spinner"></div><p style="margin-top:15px;color:#666;font-weight:600">CONECTANDO AO GOOGLE...</p></div>
+  <div id="loader"><div class="spinner"></div><p style="margin-top:15px;color:#666;font-weight:600">CONECTANDO...</p></div>
   
   <div class="sidebar">
     <div class="brand"><span class="material-icons-round">grid_view</span> ERP MANAGER</div>
@@ -84,7 +82,6 @@
   <div id="toast-box"></div>
 
   <script>
-    // URL Atualizada
     const API_URL = "https://script.google.com/macros/s/AKfycbw0QOu3LojG65Czx0V1uQ_zN7gmkw4bKnEXO3OSWGzATmjiwv6Fou2OsluqgEkqzItu/exec"; 
 
     let data = [];
@@ -93,15 +90,17 @@
     async function apiCall(action, payload = {}) {
       const options = {
         method: 'POST',
+        // 'text/plain' evita o erro de CORS Preflight no Google Apps Script
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({ action: action, data: payload })
       };
       
       const response = await fetch(API_URL, options);
+      if (!response.ok) throw new Error("Falha na resposta da API");
       const json = await response.json();
       
       if (json.success) return json.data;
-      throw new Error(json.error || "Erro desconhecido na API");
+      throw new Error(json.error || "Erro na API");
     }
 
     async function load() {
@@ -110,10 +109,9 @@
         data = await apiCall('GET_DASHBOARD');
         render(data);
         kpis(data);
-        toast("Conectado ao Google Sheets.", "ok");
+        toast("Sincronizado com Google Sheets.", "ok");
       } catch(e) {
-        toast("Erro de conexão: " + e, "err");
-        console.error(e);
+        toast("Erro: " + e.message, "err");
       }
       loading(false);
     }
@@ -122,20 +120,20 @@
       const ids = [...document.querySelectorAll('.chk:checked')].map(c => c.value);
       if(!ids.length) return toast("Selecione itens.", "warn");
       loading(true);
-      try { await apiCall('VALIDATE_TICKET', {ids}); load(); } catch(e) { toast(e, "err"); loading(false); }
+      try { await apiCall('VALIDATE_TICKET', {ids}); load(); } catch(e) { toast(e.message, "err"); loading(false); }
     }
 
     async function edit(id, old) {
       const val = prompt("Novo Status:", old);
       if(val === null || val === old) return;
       loading(true);
-      try { await apiCall('UPDATE_STATUS', {id, status:val}); load(); } catch(e) { toast(e, "err"); loading(false); }
+      try { await apiCall('UPDATE_STATUS', {id, status:val}); load(); } catch(e) { toast(e.message, "err"); loading(false); }
     }
     
     async function del(id) {
       if(!confirm("Excluir?")) return;
       loading(true);
-      try { await apiCall('DELETE_TICKET', {id}); load(); } catch(e) { toast(e, "err"); loading(false); }
+      try { await apiCall('DELETE_TICKET', {id}); load(); } catch(e) { toast(e.message, "err"); loading(false); }
     }
 
     function render(rows) {
