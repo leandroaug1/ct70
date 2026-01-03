@@ -1,15 +1,18 @@
 /**
  * ============================================================================
- * BACKEND - SISTEMA ERP CT70 (Versão Anti-Travamento)
+ * BACKEND - SISTEMA ERP CT70 (Code.gs)
  * ============================================================================
  */
 
 const DB_CONFIG = {
+  // ID da sua planilha
   ID: "1brTjhihRXDJncbKGxq9M3aAJmi1E4UytB_F5KDxRS3E", 
+  // Nome exato da aba
   TABELA: "CT_70_Status" 
 };
 
 function doGet() {
+  // Agora aponta para o arquivo 'Index'
   return HtmlService.createHtmlOutputFromFile('Index')
     .setTitle('ERP Manager | CT70')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
@@ -56,7 +59,7 @@ function response(data) { return { success: true, data: data }; }
 function errorResponse(msg) { return { success: false, error: msg }; }
 
 // =========================================================================
-// SERVICE
+// SERVICE - REGRAS DE NEGÓCIO
 // =========================================================================
 class CT70Service {
   constructor() {
@@ -75,7 +78,7 @@ class CT70Service {
     const headers = rawData[0].map(h => String(h).trim().toLowerCase());
     const rows = rawData.slice(1);
 
-    // Mapeamento Flexível
+    // Mapeamento Inteligente
     const mapIndex = (chaves) => {
       for (let chave of chaves) {
         const idx = headers.indexOf(chave.toLowerCase());
@@ -84,7 +87,6 @@ class CT70Service {
       return -1;
     };
 
-    // Índices das colunas (Baseado na sua foto)
     const idx = {
       id: mapIndex(['ordem', 'os', 'id']),
       statusFinal: mapIndex(['status final']),
@@ -97,17 +99,14 @@ class CT70Service {
       topPerm: mapIndex(['top permanência', 'top permanencia'])
     };
 
-    // Validação Crítica: Se não achar a coluna Ordem, avisa o erro.
     if (idx.id === -1) {
-      throw new Error(`Coluna 'Ordem' não encontrada. Cabeçalhos lidos: ${headers.join(', ')}`);
+      throw new Error(`Coluna 'Ordem' não encontrada. Verifique os cabeçalhos.`);
     }
 
-    // Processamento seguro dos dados
     return rows.map((r, i) => {
-      // Se a célula de ID estiver vazia, ignora a linha
+      // Pula linhas sem ID
       if (!r[idx.id] || String(r[idx.id]).trim() === "") return null;
 
-      // Função auxiliar para ler valor com segurança (evita erro se coluna não existir)
       const getVal = (index) => (index > -1 && r[index] !== undefined) ? r[index] : "";
 
       const obj = { 
@@ -123,18 +122,15 @@ class CT70Service {
         topPerm: String(getVal(idx.topPerm))
       };
 
-      // Se a coluna Top Permanência não existir, assume falso
       obj.isValidado = obj.topPerm.includes('*');
-      
       return obj;
     }).filter(item => item !== null);
   }
 
   validarTickets(ids) {
-    // Tenta encontrar a coluna, se não achar, cria erro explicativo
     const colTop = this.repo.findColIndex(['top permanência', 'top permanencia']);
     
-    if (colTop === -1) throw new Error("Crie uma coluna chamada 'Top Permanência' na planilha para usar a validação.");
+    if (colTop === -1) throw new Error("Crie a coluna 'Top Permanência' na planilha para validar.");
 
     const colObs = this.repo.findColIndex(['observação fluxo', 'observacao fluxo']);
 
