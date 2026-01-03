@@ -9,11 +9,11 @@
     :root { --bg:#eff3f6; --panel:#fff; --primary:#0a6ed1; --text:#32363a; --border:#d1dbe5; }
     body { font-family:'Inter', sans-serif; background:var(--bg); color:var(--text); margin:0; height:100vh; display:flex; overflow: hidden; }
     
-    /* Sidebar Retrátil */
     .sidebar { width:250px; background:var(--panel); border-right:1px solid var(--border); display:flex; flex-direction:column; transition: 0.3s; position: relative; }
     .sidebar.collapsed { width: 70px; }
     .sidebar.collapsed .brand-text { display: none; }
     .brand { height:64px; display:flex; align-items:center; padding:0 24px; color:var(--primary); font-weight:700; border-bottom:1px solid var(--border); gap:12px; white-space: nowrap; overflow: hidden; }
+    
     .toggle-btn { position: absolute; bottom: 20px; right: -15px; background: var(--primary); color: #fff; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 3px solid var(--bg); z-index: 10; transition: 0.3s; }
     .sidebar.collapsed .toggle-btn { transform: rotate(180deg); right: 20px; }
 
@@ -21,18 +21,16 @@
     .header { height:64px; background:var(--panel); border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; padding:0 32px; }
     .content { padding:32px; overflow-y:auto; flex:1; }
     
-    /* KPIs Interativos */
     .kpi-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:20px; margin-bottom:30px; }
     .card { background:var(--panel); padding:20px; border-radius:8px; border:1px solid var(--border); text-align: center; cursor: pointer; transition: 0.2s; }
     .card.active { border: 2px solid var(--primary); background: #f0f7ff; transform: translateY(-3px); }
     .kpi-val { font-size: 2.2em; font-weight: 800; margin-top: 8px; }
     
-    /* Grid e Toolbar */
     .grid { background:var(--panel); border-radius:8px; border:1px solid var(--border); overflow:hidden; display:flex; flex-direction:column; height:calc(100vh - 320px); }
     .toolbar { padding:15px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; gap: 15px; background: #fafbfc; }
     .filter-group { display: flex; gap: 10px; align-items: center; }
     
-    select.sort-select { padding: 8px; border-radius: 4px; border: 1px solid var(--border); background: white; outline: none; font-size: 13px; color: var(--text); }
+    select.sort-select { padding: 8px; border-radius: 4px; border: 1px solid var(--border); background: white; outline: none; font-size: 13px; color: var(--text); cursor: pointer; }
     
     .table-box { overflow:auto; flex:1; }
     table { width:100%; border-collapse:collapse; font-size:13px; white-space:nowrap; }
@@ -48,7 +46,6 @@
     #loader { position:fixed; inset:0; background:rgba(255,255,255,0.9); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:1000; }
     .spinner { width:40px; height:40px; border:4px solid #eee; border-top-color:var(--primary); border-radius:50%; animation:spin 1s linear infinite; }
     @keyframes spin { to{transform:rotate(360deg)} }
-    @keyframes slideIn { from{transform:translateX(100%)} to{transform:translateX(0)} }
   </style>
 </head>
 <body>
@@ -68,7 +65,7 @@
     <div class="header">
       <div style="background:#f2f4f7; padding:8px 16px; border-radius:6px; display:flex; align-items:center; width:400px;">
         <span class="material-icons-round" style="color:#999">search</span>
-        <input id="search" style="border:none; background:transparent; margin-left:10px; width:100%; outline:none;" placeholder="Pesquisar por palavra (OS, Status, Responsável...)" onkeyup="applyFilters()">
+        <input id="search" style="border:none; background:transparent; margin-left:10px; width:100%; outline:none;" placeholder="Pesquisar por palavra..." onkeyup="applyFilters()">
       </div>
       <div style="font-weight:600; font-size:13px">Admin User</div>
     </div>
@@ -98,6 +95,7 @@
               <option value="az">Ordem (A-Z)</option>
               <option value="za">Ordem (Z-A)</option>
               <option value="perm_desc">Maior Permanência</option>
+              <option value="perm_asc">Menor Permanência</option>
             </select>
           </div>
           <div style="display:flex;gap:8px">
@@ -165,19 +163,18 @@
       
       let filtered = [...fullData];
 
-      // 1. Filtro KPI
       if (currentKpiFilter === 'valid') filtered = filtered.filter(x => x.isValidado);
       if (currentKpiFilter === 'pend') filtered = filtered.filter(x => !x.isValidado);
 
-      // 2. Filtro Palavra-Chave
       if (searchTerm) {
         filtered = filtered.filter(r => Object.values(r).some(v => String(v).toLowerCase().includes(searchTerm)));
       }
 
-      // 3. Ordenação
       if (sortVal === 'az') filtered.sort((a, b) => String(a.id).localeCompare(String(b.id)));
       if (sortVal === 'za') filtered.sort((a, b) => String(b.id).localeCompare(String(a.id)));
       if (sortVal === 'perm_desc') filtered.sort((a, b) => (Number(b.permanencia) || 0) - (Number(a.permanencia) || 0));
+      // LÓGICA NOVA: Menor Permanência
+      if (sortVal === 'perm_asc') filtered.sort((a, b) => (Number(a.permanencia) || 0) - (Number(b.permanencia) || 0));
 
       render(filtered);
     }
@@ -203,7 +200,6 @@
       });
     }
 
-    // Funções de Ação (Simplificadas para o exemplo)
     async function validateSelection() {
       const ids = [...document.querySelectorAll('.chk:checked')].map(c => c.value);
       if(!ids.length) return alert("Selecione itens.");
