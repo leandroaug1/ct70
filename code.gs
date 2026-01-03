@@ -9,10 +9,12 @@ const DB_CONFIG = {
   TABELA: "CT_70_Status" 
 };
 
+// Responde a requisições de LEITURA (GET)
 function doGet(e) {
   return handleRequest('GET_DASHBOARD', null);
 }
 
+// Responde a requisições de ESCRITA (POST)
 function doPost(e) {
   try {
     const payload = JSON.parse(e.postData.contents);
@@ -22,13 +24,14 @@ function doPost(e) {
   }
 }
 
+// Roteador Central
 function handleRequest(action, data) {
   const lock = LockService.getScriptLock();
   try {
     const service = new CT70Service();
     let result;
     if (action !== 'GET_DASHBOARD') lock.tryLock(5000);
-    
+
     switch (action) {
       case 'GET_DASHBOARD':
         result = service.getDashboardData();
@@ -57,6 +60,7 @@ function handleRequest(action, data) {
   }
 }
 
+// Cria a resposta JSON formatada para o navegador
 function createJSONOutput(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj))
     .setMimeType(ContentService.MimeType.JSON);
@@ -96,7 +100,6 @@ class CT70Service {
         aging: String(val(idx.aging)),
         status: String(val(idx.status)),
         responsavel: val(idx.responsavel),
-        topPerm: String(val(idx.topPerm)),
         isValidado: String(val(idx.topPerm)).includes('*')
       };
     }).filter(i => i !== null);
@@ -105,23 +108,23 @@ class CT70Service {
   validarTickets(ids) {
     const colTop = this.repo.findColIndex(['top permanência', 'top permanencia']);
     const colObs = this.repo.findColIndex(['observação fluxo', 'observacao fluxo']);
-    if (colTop === -1) throw new Error("Coluna 'Top Permanência' não encontrada.");
+    if (colTop === -1) throw new Error("Crie a coluna 'Top Permanência'.");
     ids.forEach(id => {
       this.repo.updateCell(id, colTop, v => v.startsWith('*') ? v : '*' + v);
       if (colObs !== -1) this.repo.updateCell(id, colObs, () => "Tiquete Validado");
     });
     return true;
   }
-  
+
   atualizarStatus(id, st) {
     const col = this.repo.findColIndex(['status']);
     if (col === -1) throw new Error("Coluna 'Status' não encontrada.");
     this.repo.updateCell(id, col, () => st);
     return true;
   }
-  
+
   excluirTicket(id) { this.repo.deleteRow(id); return true; }
-  
+
   limparValidacoes() {
     const col = this.repo.findColIndex(['top permanência']);
     if (col === -1) return false;
