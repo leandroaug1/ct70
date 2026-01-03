@@ -1,246 +1,473 @@
-/**
- * ============================================================================
- * BACKEND - SISTEMA ERP CT70 (Versão Anti-Travamento)
- * ============================================================================
- */
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>ERP CT70 Manager</title>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      /* Tema Claro ERP Enterprise (SAP Style) */
+      --bg-body: #eff3f6;       
+      --bg-panel: #ffffff;      
+      --bg-sidebar: #ffffff;    
+      --border: #d1dbe5;        
+      --primary: #0a6ed1;       
+      --primary-hover: #005aae; 
+      --text-main: #32363a;     
+      --text-muted: #6a7682;    
+      --success: #107e3e;       
+      --danger: #bb0000;        
+      --warning: #e9730c;       
+      --shadow: 0 1px 2px rgba(0,0,0,0.05); 
+    }
 
-const DB_CONFIG = {
-  ID: "1brTjhihRXDJncbKGxq9M3aAJmi1E4UytB_F5KDxRS3E", 
-  TABELA: "CT_70_Status" 
-};
-
-function doGet() {
-  return HtmlService.createHtmlOutputFromFile('Index')
-    .setTitle('ERP Manager | CT70')
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
-}
-
-function api(endpoint, payload) {
-  const lock = LockService.getScriptLock();
-  try {
-    const service = new CT70Service();
+    * { box-sizing: border-box; outline: none; }
     
-    switch (endpoint) {
-      case 'GET_DASHBOARD':
-        return response(service.getDashboardData());
-        
-      case 'VALIDATE_TICKET':
-        lock.tryLock(5000); 
-        return response(service.validarTickets(payload.ids));
-        
-      case 'UPDATE_STATUS':
-        lock.tryLock(5000);
-        return response(service.atualizarStatus(payload.id, payload.status));
-        
-      case 'DELETE_TICKET':
-        lock.tryLock(5000);
-        return response(service.excluirTicket(payload.id));
-        
-      case 'CLEAR_VALIDATIONS':
-        lock.tryLock(5000);
-        return response(service.limparValidacoes());
-        
-      default:
-        throw new Error(`Endpoint ${endpoint} desconhecido.`);
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--bg-body);
+      color: var(--text-main);
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      overflow: hidden;
     }
-  } catch (e) {
-    Logger.log("ERRO API: " + e.message);
-    return errorResponse(e.message);
-  } finally {
-    lock.releaseLock();
-  }
-}
 
-function response(data) { return { success: true, data: data }; }
-function errorResponse(msg) { return { success: false, error: msg }; }
+    /* === SIDEBAR === */
+    .sidebar {
+      width: 250px;
+      background-color: var(--bg-sidebar);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      z-index: 10;
+    }
 
-// =========================================================================
-// SERVICE
-// =========================================================================
-class CT70Service {
-  constructor() {
-    this.repo = new Repository(DB_CONFIG.ID, DB_CONFIG.TABELA);
-  }
-
-  getDashboardData() {
-    const rawData = this.repo.findAll();
+    .brand {
+      height: 64px;
+      padding: 0 24px;
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid var(--border);
+    }
     
-    // Proteção contra planilha vazia
-    if (!rawData || rawData.length < 2) {
-      Logger.log("Planilha vazia ou apenas cabeçalho.");
-      return [];
+    .nav-item {
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 14px;
+      font-weight: 500;
+      border-left: 4px solid transparent;
     }
 
-    const headers = rawData[0].map(h => String(h).trim().toLowerCase());
-    const rows = rawData.slice(1);
-
-    // Mapeamento Flexível
-    const mapIndex = (chaves) => {
-      for (let chave of chaves) {
-        const idx = headers.indexOf(chave.toLowerCase());
-        if (idx !== -1) return idx;
-      }
-      return -1;
-    };
-
-    // Índices das colunas (Baseado na sua foto)
-    const idx = {
-      id: mapIndex(['ordem', 'os', 'id']),
-      statusFinal: mapIndex(['status final']),
-      obsFluxo: mapIndex(['observação fluxo', 'observacao fluxo']),
-      permanencia: mapIndex(['permanência', 'permanencia']),
-      aging: mapIndex(['aging fluxo', 'aging']),
-      status: mapIndex(['status', 'obs custom']),
-      responsavel: mapIndex(['resp. fluxo', 'resp fluxo', 'responsavel']),
-      stf: mapIndex(['st_f', 'stf']),
-      topPerm: mapIndex(['top permanência', 'top permanencia'])
-    };
-
-    // Validação Crítica: Se não achar a coluna Ordem, avisa o erro.
-    if (idx.id === -1) {
-      throw new Error(`Coluna 'Ordem' não encontrada. Cabeçalhos lidos: ${headers.join(', ')}`);
+    .nav-item:hover { background: #f5f8fa; color: var(--primary); }
+    .nav-item.active {
+      background: #f0f7ff;
+      color: var(--primary);
+      border-left-color: var(--primary);
+      font-weight: 600;
     }
 
-    // Processamento seguro dos dados
-    return rows.map((r, i) => {
-      // Se a célula de ID estiver vazia, ignora a linha
-      if (!r[idx.id] || String(r[idx.id]).trim() === "") return null;
+    /* === MAIN === */
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
 
-      // Função auxiliar para ler valor com segurança (evita erro se coluna não existir)
-      const getVal = (index) => (index > -1 && r[index] !== undefined) ? r[index] : "";
+    .top-header {
+      height: 64px;
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 32px;
+    }
 
-      const obj = { 
-        rowIndex: i + 2,
-        id: r[idx.id],
-        statusFinal: getVal(idx.statusFinal),
-        obsFluxo: String(getVal(idx.obsFluxo)),
-        permanencia: Number(getVal(idx.permanencia)) || 0,
-        aging: getVal(idx.aging) instanceof Date ? getVal(idx.aging).toLocaleDateString() : String(getVal(idx.aging)),
-        status: String(getVal(idx.status)),
-        responsavel: getVal(idx.responsavel),
-        stf: getVal(idx.stf),
-        topPerm: String(getVal(idx.topPerm))
-      };
+    .search-bar {
+      display: flex;
+      align-items: center;
+      background: #f2f4f7;
+      padding: 8px 16px;
+      border-radius: 6px;
+      width: 380px;
+      border: 1px solid transparent;
+      transition: all 0.2s;
+    }
+    .search-bar:focus-within { border-color: var(--primary); background: #fff; }
+    .search-bar input {
+      background: transparent; border: none; color: var(--text-main);
+      margin-left: 10px; width: 100%; font-family: inherit;
+    }
 
-      // Se a coluna Top Permanência não existir, assume falso
-      obj.isValidado = obj.topPerm.includes('*');
+    .view-container {
+      padding: 32px;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    /* KPI */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 24px;
+      margin-bottom: 32px;
+    }
+
+    .kpi-card {
+      background: var(--bg-panel);
+      padding: 24px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      box-shadow: var(--shadow);
+      position: relative;
+    }
+    
+    .kpi-label { font-size: 12px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; }
+    .kpi-value { font-size: 28px; font-weight: 700; margin-top: 8px; color: var(--text-main); }
+
+    /* GRID */
+    .datagrid-container {
+      background: var(--bg-panel);
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      height: calc(100vh - 300px);
+      box-shadow: var(--shadow);
+    }
+
+    .datagrid-toolbar {
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #fbfcfd;
+    }
+
+    .btn {
+      padding: 8px 16px; border-radius: 4px; border: 1px solid transparent;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      display: inline-flex; align-items: center; gap: 8px; transition: all 0.2s;
+    }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-outline { background: white; border-color: var(--border); color: var(--text-muted); }
+    .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+
+    .table-responsive { overflow: auto; flex: 1; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 13px; white-space: nowrap; }
+    th {
+      background: #f7f9fb; text-align: left; padding: 14px 24px;
+      color: var(--text-muted); font-weight: 700; position: sticky; top: 0;
+      border-bottom: 1px solid var(--border); font-size: 11px; text-transform: uppercase;
+    }
+    td { padding: 14px 24px; border-bottom: 1px solid #edf2f7; vertical-align: middle; }
+    tr:hover { background: #f8fafc; }
+
+    /* Utilities */
+    .badge { padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 700; }
+    .badge-ok { background: #e6f4ea; color: #137333; border: 1px solid #ceead6; }
+    .badge-pending { background: #fef7e0; color: #b06000; border: 1px solid #feebc8; }
+    
+    tr.validated td { color: #137333; }
+    tr.validated { background: #f6fffa; }
+
+    /* Loading */
+    #loading-overlay {
+      position: fixed; inset: 0; background: rgba(255,255,255,0.9);
+      display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 9999;
+    }
+    .spinner {
+      width: 40px; height: 40px; border: 4px solid #e0e0e0;
+      border-top-color: var(--primary); border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Toast */
+    #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 1000; }
+    .toast {
+      background: white; border-left: 4px solid var(--primary); color: var(--text-main);
+      padding: 15px 20px; border-radius: 4px; box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+      margin-top: 10px; display: flex; align-items: center; gap: 10px; font-size: 14px;
+      animation: slideIn 0.3s ease; border: 1px solid var(--border);
+    }
+    @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+
+    .action-icon { cursor: pointer; padding: 6px; border-radius: 4px; color: var(--text-muted); }
+    .action-icon:hover { background: #e8f0fe; color: var(--primary); }
+  </style>
+</head>
+<body>
+
+  <div id="loading-overlay">
+    <div class="spinner"></div>
+    <div style="margin-top:15px; font-weight:600; color:#6a7682; font-size:13px">CARREGANDO SISTEMA...</div>
+  </div>
+
+  <aside class="sidebar">
+    <div class="brand">
+      <span class="material-icons-round">grid_view</span> ERP MANAGER
+    </div>
+    <nav>
+      <div class="nav-item active">
+        <span class="material-icons-round">analytics</span> Dashboard
+      </div>
+      <div class="nav-item">
+        <span class="material-icons-round">inventory_2</span> Estoque
+      </div>
+      <div class="nav-item">
+        <span class="material-icons-round">settings</span> Configurações
+      </div>
+    </nav>
+  </aside>
+
+  <main class="main-content">
+    <header class="top-header">
+      <div class="search-bar">
+        <span class="material-icons-round" style="color:var(--text-muted)">search</span>
+        <input type="text" id="globalSearch" placeholder="Pesquisar..." onkeyup="filtrarGrid()">
+      </div>
+      <div style="font-size:13px; font-weight:600; color:var(--text-main)">Admin User</div>
+    </header>
+
+    <div class="view-container">
       
-      return obj;
-    }).filter(item => item !== null);
-  }
+      <div class="kpi-grid">
+        <div class="kpi-card" style="border-top: 4px solid var(--primary)">
+          <span class="kpi-label">Total Registros</span>
+          <span class="kpi-value" id="kpi-total">0</span>
+        </div>
+        <div class="kpi-card" style="border-top: 4px solid var(--success)">
+          <span class="kpi-label">Validados</span>
+          <span class="kpi-value" id="kpi-valid" style="color:var(--success)">0</span>
+        </div>
+        <div class="kpi-card" style="border-top: 4px solid var(--warning)">
+          <span class="kpi-label">Pendentes</span>
+          <span class="kpi-value" id="kpi-pending" style="color:var(--warning)">0</span>
+        </div>
+        <div class="kpi-card" style="border-top: 4px solid #7049ba">
+          <span class="kpi-label">Média Dias</span>
+          <span class="kpi-value" id="kpi-perm" style="color:#7049ba">0</span>
+        </div>
+      </div>
 
-  validarTickets(ids) {
-    // Tenta encontrar a coluna, se não achar, cria erro explicativo
-    const colTop = this.repo.findColIndex(['top permanência', 'top permanencia']);
-    
-    if (colTop === -1) throw new Error("Crie uma coluna chamada 'Top Permanência' na planilha para usar a validação.");
+      <div class="datagrid-container">
+        <div class="datagrid-toolbar">
+          <h3 style="margin:0; font-size:16px; font-weight:700; color:var(--text-main)">Gestão de Ordens</h3>
+          <div style="display:flex; gap:8px">
+            <button class="btn btn-outline" onclick="loadData()">Refresh</button>
+            <button class="btn btn-outline" onclick="limparValidacoes()">Reset</button>
+            <button class="btn btn-primary" onclick="validarSelecionados()">Validar</button>
+          </div>
+        </div>
+        
+        <div class="table-responsive">
+          <table id="grid-table">
+            <thead>
+              <tr>
+                <th width="40" align="center"><input type="checkbox" id="check-all" onchange="toggleAll(this)"></th>
+                <th>Ordem</th>
+                <th>Status Final</th>
+                <th>Observação Fluxo</th>
+                <th>Responsável</th>
+                <th>Permanência</th>
+                <th>Aging</th>
+                <th>Obs Custom</th>
+                <th align="right">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="grid-body"></tbody>
+          </table>
+          <div id="empty-state" style="display:none; padding:50px; text-align:center; color:#999">
+            <span class="material-icons-round" style="font-size:48px; color:#ddd">inbox</span><br>
+            Nenhum registro encontrado.
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
 
-    const colObs = this.repo.findColIndex(['observação fluxo', 'observacao fluxo']);
+  <div id="toast-container"></div>
 
-    ids.forEach(id => {
-      this.repo.updateCell(id, colTop, val => val.startsWith('*') ? val : '*' + val);
-      if (colObs !== -1) {
-        this.repo.updateCell(id, colObs, () => "Tiquete Validado");
-      }
+  <script>
+    let appData = [];
+
+    document.addEventListener("DOMContentLoaded", () => {
+      loadData();
     });
-    return true;
-  }
 
-  atualizarStatus(id, novoStatus) {
-    const colStatus = this.repo.findColIndex(['status']);
-    if (colStatus === -1) throw new Error("Coluna 'Status' não encontrada.");
-    
-    this.repo.updateCell(id, colStatus, () => novoStatus);
-    return true;
-  }
-
-  excluirTicket(id) {
-    this.repo.deleteRow(id);
-    return true;
-  }
-
-  limparValidacoes() {
-    const colTop = this.repo.findColIndex(['top permanência', 'top permanencia']);
-    if (colTop === -1) return false;
-    
-    this.repo.updateColumn(colTop, val => val.startsWith('*'), val => val.replace(/^\*/, ''));
-    return true;
-  }
-}
-
-// =========================================================================
-// REPOSITORY
-// =========================================================================
-class Repository {
-  constructor(ssId, sheetName) {
-    try {
-      this.ss = SpreadsheetApp.openById(ssId);
-      this.sheet = this.ss.getSheetByName(sheetName);
-      if (!this.sheet) throw new Error(`Aba '${sheetName}' não encontrada.`);
-    } catch(e) {
-      throw new Error(`Erro Planilha: ${e.message}`);
+    function apiCall(endpoint, payload = {}) {
+      return new Promise((resolve, reject) => {
+        google.script.run
+          .withSuccessHandler(res => {
+            if (res.success) {
+               resolve(res.data);
+            } else {
+               reject(res.error); 
+            }
+          })
+          .withFailureHandler(err => reject(err.message || err))
+          .api(endpoint, payload);
+      });
     }
-  }
 
-  findAll() {
-    return this.sheet.getDataRange().getValues();
-  }
-
-  findColIndex(possiveisNomes) {
-    const lastCol = this.sheet.getLastColumn();
-    if (lastCol === 0) return -1;
-    
-    const headers = this.sheet.getRange(1, 1, 1, lastCol).getValues()[0];
-    const headersNorm = headers.map(h => String(h).trim().toLowerCase());
-    
-    for (let nome of possiveisNomes) {
-      const idx = headersNorm.indexOf(nome.toLowerCase());
-      if (idx !== -1) return idx + 1; 
-    }
-    return -1;
-  }
-
-  findRowIndex(uniqueId) {
-    const colId = this.findColIndex(['ordem', 'os', 'id']);
-    if (colId === -1) return -1;
-    
-    const data = this.sheet.getDataRange().getValues();
-    const colArrayIdx = colId - 1; 
-
-    for (let i = 1; i < data.length; i++) {
-      if (String(data[i][colArrayIdx]).trim() == String(uniqueId).trim()) return i + 1;
-    }
-    return -1;
-  }
-
-  updateCell(id, colIndex, callbackValue) {
-    const row = this.findRowIndex(id);
-    if (row === -1) return;
-    const cell = this.sheet.getRange(row, colIndex);
-    const val = String(cell.getValue());
-    cell.setValue(typeof callbackValue === 'function' ? callbackValue(val) : callbackValue);
-  }
-
-  deleteRow(id) {
-    const row = this.findRowIndex(id);
-    if (row !== -1) this.sheet.deleteRow(row);
-  }
-
-  updateColumn(colIndex, conditionFn, transformFn) {
-    const lastRow = this.sheet.getLastRow();
-    if (lastRow < 2) return;
-    
-    const range = this.sheet.getRange(2, colIndex, lastRow - 1, 1);
-    const values = range.getValues();
-    let changed = false;
-
-    for (let i = 0; i < values.length; i++) {
-      if (conditionFn(String(values[i][0]))) {
-        values[i][0] = transformFn(String(values[i][0]));
-        changed = true;
+    async function loadData() {
+      toggleLoading(true);
+      try {
+        const data = await apiCall('GET_DASHBOARD');
+        appData = data || [];
+        renderGrid(appData);
+        updateKPIs(appData);
+        showToast("Dados carregados com sucesso", "success");
+      } catch (err) {
+        showToast("Erro: " + err, "error");
+        renderGrid([]);
+      } finally {
+        toggleLoading(false);
       }
     }
-    if (changed) range.setValues(values);
-  }
-}
+
+    async function validarSelecionados() {
+      const selected = Array.from(document.querySelectorAll('.row-check:checked')).map(cb => cb.value);
+      if (selected.length === 0) return showToast("Selecione itens", "warning");
+      
+      toggleLoading(true);
+      try {
+        await apiCall('VALIDATE_TICKET', { ids: selected });
+        loadData();
+      } catch(err) {
+        showToast("Erro: " + err, "error");
+        toggleLoading(false);
+      }
+    }
+
+    async function atualizarObs(id, oldVal) {
+      const novo = prompt("Nova observação:", oldVal);
+      if (novo === null || novo === oldVal) return;
+      toggleLoading(true);
+      try {
+        await apiCall('UPDATE_STATUS', { id: id, status: novo });
+        loadData();
+      } catch(err) {
+        showToast("Erro: " + err, "error");
+        toggleLoading(false);
+      }
+    }
+    
+    async function excluir(id) {
+        if(!confirm("Excluir item?")) return;
+        toggleLoading(true);
+        try {
+            await apiCall('DELETE_TICKET', { id: id });
+            loadData();
+        } catch(err) {
+            showToast("Erro: " + err, "error");
+            toggleLoading(false);
+        }
+    }
+
+    async function limparValidacoes() {
+        if(!confirm("Resetar todas as validações?")) return;
+        toggleLoading(true);
+        try {
+            await apiCall('CLEAR_VALIDATIONS');
+            loadData();
+        } catch(err) {
+            showToast("Erro: " + err, "error");
+            toggleLoading(false);
+        }
+    }
+
+    function renderGrid(data) {
+      const tbody = document.getElementById("grid-body");
+      const empty = document.getElementById("empty-state");
+      tbody.innerHTML = "";
+
+      if (!data || data.length === 0) {
+        empty.style.display = 'block';
+        return;
+      }
+      empty.style.display = 'none';
+
+      data.forEach(row => {
+        const tr = document.createElement("tr");
+        if (row.isValidado) tr.classList.add("validated");
+
+        const obsIcon = row.isValidado 
+          ? `<span style="color:var(--success); font-weight:700; display:flex; align-items:center; gap:5px"><span class="material-icons-round" style="font-size:16px">check_circle</span> Validado</span>`
+          : row.obsFluxo;
+
+        tr.innerHTML = `
+          <td align="center"><input type="checkbox" class="row-check" value="${row.id}"></td>
+          <td style="font-weight:700; color:var(--primary)">${row.id}</td>
+          <td>${row.statusFinal}</td>
+          <td>${obsIcon}</td>
+          <td>${row.responsavel}</td>
+          <td>${row.permanencia}</td>
+          <td>${row.aging}</td>
+          <td onclick="atualizarObs('${row.id}', '${row.status||''}')" style="cursor:pointer">
+             ${row.status || '<span style="color:#ccc; font-style:italic">Editar...</span>'}
+          </td>
+          <td align="right">
+             <span class="material-icons-round action-icon" onclick="excluir('${row.id}')">delete</span>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function updateKPIs(data) {
+      document.getElementById('kpi-total').innerText = data.length;
+      document.getElementById('kpi-valid').innerText = data.filter(d => d.isValidado).length;
+      document.getElementById('kpi-pending').innerText = data.filter(d => !d.isValidado).length;
+      
+      const total = data.reduce((acc, cur) => acc + (cur.permanencia || 0), 0);
+      const avg = data.length ? (total / data.length).toFixed(1) : 0;
+      document.getElementById('kpi-perm').innerText = avg;
+    }
+
+    function filtrarGrid() {
+      const term = document.getElementById("globalSearch").value.toLowerCase();
+      const filtered = appData.filter(i => Object.values(i).some(v => String(v).toLowerCase().includes(term)));
+      renderGrid(filtered);
+    }
+
+    function toggleAll(source) {
+      document.querySelectorAll('.row-check').forEach(cb => cb.checked = source.checked);
+    }
+
+    function toggleLoading(show) {
+      document.getElementById('loading-overlay').style.display = show ? 'flex' : 'none';
+    }
+
+    function showToast(msg, type = 'neutral') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.style.borderLeftColor = type === 'success' ? 'var(--success)' : (type === 'error' ? 'var(--danger)' : 'var(--primary)');
+      toast.innerHTML = `<span>${msg}</span>`;
+      container.appendChild(toast);
+      setTimeout(() => toast.remove(), 5000);
+    }
+  </script>
+</body>
+</html>
