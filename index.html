@@ -2,14 +2,14 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>ERP CT70 Manager</title>
+  <title>ERP CT70 LANMAR</title>
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root { --bg:#eff3f6; --panel:#fff; --primary:#0a6ed1; --text:#32363a; --border:#d1dbe5; }
     body { font-family:'Inter', sans-serif; background:var(--bg); color:var(--text); margin:0; height:100vh; display:flex; }
     .sidebar { width:250px; background:var(--panel); border-right:1px solid var(--border); display:flex; flex-direction:column; }
-    .brand { height:64px; display:flex; align-items:center; padding:0 24px; color:var(--primary); font-weight:700; border-bottom:1px solid var(--border); gap:10px; }
+    .brand { height:64px; display:flex; align-items:center; padding:0 24px; color:var(--primary); font-weight:700; border-bottom:1px solid var(--border); gap:10px; font-size: 14px; }
     .main { flex:1; display:flex; flex-direction:column; overflow:hidden; }
     .header { height:64px; background:var(--panel); border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; padding:0 32px; }
     .search { background:#f2f4f7; padding:8px 16px; border-radius:6px; display:flex; align-items:center; width:300px; }
@@ -39,10 +39,10 @@
   </style>
 </head>
 <body>
-  <div id="loader"><div class="spinner"></div><p style="margin-top:15px;color:#666;font-weight:600">SINCRONIZANDO DADOS...</p></div>
+  <div id="loader"><div class="spinner"></div><p style="margin-top:15px;color:#666;font-weight:600">CONECTANDO AO SISTEMA...</p></div>
   
   <div class="sidebar">
-    <div class="brand"><span class="material-icons-round">grid_view</span> ERP MANAGER</div>
+    <div class="brand"><span class="material-icons-round">grid_view</span> ERP CT70 LANMAR</div>
   </div>
 
   <div class="main">
@@ -83,7 +83,6 @@
   <div id="toast-box"></div>
 
   <script>
-    // URL DA SUA API (Substitua se gerar uma nova)
     const API_URL = "https://script.google.com/macros/s/AKfycbw0QOu3LojG65Czx0V1uQ_zN7gmkw4bKnEXO3OSWGzATmjiwv6Fou2OsluqgEkqzItu/exec"; 
 
     let data = [];
@@ -92,21 +91,16 @@
     async function apiCall(action, payload = {}) {
       const options = {
         method: 'POST',
-        // 'text/plain' é a chave para evitar erro de CORS no Google
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({ action: action, data: payload })
       };
       
-      try {
-        const response = await fetch(API_URL, options);
-        if (!response.ok) throw new Error("Erro na rede ou URL inválida.");
-        const json = await response.json();
-        if (json.success) return json.data;
-        throw new Error(json.error || "Erro interno na API.");
-      } catch (e) {
-        console.error(e);
-        throw e;
-      }
+      const response = await fetch(API_URL, options);
+      if (!response.ok) throw new Error("Falha na conexão.");
+      const json = await response.json();
+      
+      if (json.success) return json.data;
+      throw new Error(json.error || "Erro na API.");
     }
 
     async function load() {
@@ -115,56 +109,37 @@
         data = await apiCall('GET_DASHBOARD');
         render(data);
         kpis(data);
-        toast("Dados carregados com sucesso.", "ok");
+        toast("Sincronizado com sucesso.", "ok");
       } catch(e) {
-        toast("Falha na conexão: " + e.message, "err");
+        toast("Erro: " + e.message, "err");
       }
       loading(false);
     }
 
     async function validate() {
       const ids = [...document.querySelectorAll('.chk:checked')].map(c => c.value);
-      if(!ids.length) return toast("Selecione ao menos um item.", "warn");
+      if(!ids.length) return toast("Selecione itens.", "warn");
       loading(true);
-      try { 
-        await apiCall('VALIDATE_TICKET', {ids}); 
-        await load(); 
-      } catch(e) { 
-        toast(e.message, "err"); 
-        loading(false); 
-      }
+      try { await apiCall('VALIDATE_TICKET', {ids}); load(); } catch(e) { toast(e.message, "err"); loading(false); }
     }
 
     async function edit(id, old) {
       const val = prompt("Atualizar Status:", old);
       if(val === null || val === old) return;
       loading(true);
-      try { 
-        await apiCall('UPDATE_STATUS', {id, status:val}); 
-        await load(); 
-      } catch(e) { 
-        toast(e.message, "err"); 
-        loading(false); 
-      }
+      try { await apiCall('UPDATE_STATUS', {id, status:val}); load(); } catch(e) { toast(e.message, "err"); loading(false); }
     }
     
     async function del(id) {
-      if(!confirm("Deseja realmente excluir este registro?")) return;
+      if(!confirm("Excluir?")) return;
       loading(true);
-      try { 
-        await apiCall('DELETE_TICKET', {id}); 
-        await load(); 
-      } catch(e) { 
-        toast(e.message, "err"); 
-        loading(false); 
-      }
+      try { await apiCall('DELETE_TICKET', {id}); load(); } catch(e) { toast(e.message, "err"); loading(false); }
     }
 
     function render(rows) {
       const tb = document.getElementById('tbody');
       tb.innerHTML = '';
       document.getElementById('empty').style.display = rows.length ? 'none' : 'block';
-      
       rows.forEach(r => {
         const tr = document.createElement('tr');
         if(r.isValidado) tr.className = 'valid';
@@ -175,7 +150,7 @@
           <td>${r.isValidado ? '<span style="color:#107e3e;font-weight:700">✓ Validado</span>' : r.obsFluxo}</td>
           <td>${r.responsavel}</td>
           <td>${r.permanencia}</td>
-          <td onclick="edit('${r.id}','${r.status}')" style="cursor:pointer;text-decoration:underline">${r.status || 'Adicionar...'}</td>
+          <td onclick="edit('${r.id}','${r.status}')" style="cursor:pointer;text-decoration:underline">${r.status || 'Editar...'}</td>
           <td><span onclick="del('${r.id}')" style="cursor:pointer;color:#bb0000;font-weight:bold">✕</span></td>
         `;
         tb.appendChild(tr);
@@ -184,33 +159,23 @@
 
     function kpis(d) {
       document.getElementById('k-total').innerText = d.length;
-      document.getElementById('k-valid').innerText = d.filter(x => x.isValidado).length;
-      document.getElementById('k-pend').innerText = d.filter(x => !x.isValidado).length;
+      document.getElementById('k-valid').innerText = d.filter(x=>x.isValidado).length;
+      document.getElementById('k-pend').innerText = d.filter(x=>!x.isValidado).length;
     }
 
     function filter() {
       const term = document.getElementById('search').value.toLowerCase();
-      const filtered = data.filter(r => 
-        Object.values(r).some(v => String(v).toLowerCase().includes(term))
-      );
-      render(filtered);
+      render(data.filter(r => Object.values(r).some(v => String(v).toLowerCase().includes(term))));
     }
-
-    function toggle(src) { 
-      document.querySelectorAll('.chk').forEach(c => c.checked = src.checked); 
-    }
-
-    function loading(show) { 
-      document.getElementById('loader').style.display = show ? 'flex' : 'none'; 
-    }
-
+    function toggle(src) { document.querySelectorAll('.chk').forEach(c => c.checked = src.checked); }
+    function loading(show) { document.getElementById('loader').style.display = show ? 'flex' : 'none'; }
     function toast(msg, type) {
       const t = document.createElement('div');
       t.className = 'toast';
       t.innerText = msg;
-      t.style.borderLeftColor = type == 'err' ? '#bb0000' : (type == 'ok' ? '#107e3e' : '#e9730c');
+      t.style.borderLeftColor = type=='err'?'#bb0000':(type=='ok'?'#107e3e':'#e9730c');
       document.getElementById('toast-box').appendChild(t);
-      setTimeout(() => t.remove(), 4000);
+      setTimeout(()=>t.remove(), 4000);
     }
   </script>
 </body>
