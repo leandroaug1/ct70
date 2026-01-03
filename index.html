@@ -84,28 +84,19 @@
   <div id="toast-box"></div>
 
   <script>
-    // 🔴 COLE AQUI A URL QUE VOCÊ COPIOU DO GOOGLE APPS SCRIPT
-    const API_URL = "https://script.google.com/macros/s/AKfycbwc2sH5_YWTDBQo4JQQQS6lOvqS08oivrLm8Gfblbs/exec"; 
-    // 👆 Substitua pelo seu link novo se precisar.
+    // URL Atualizada
+    const API_URL = "https://script.google.com/macros/s/AKfycbw0QOu3LojG65Czx0V1uQ_zN7gmkw4bKnEXO3OSWGzATmjiwv6Fou2OsluqgEkqzItu/exec"; 
 
     let data = [];
     window.onload = load;
 
-    // Nova função de conexão usando FETCH em vez de google.script.run
     async function apiCall(action, payload = {}) {
       const options = {
-        method: 'POST', // O Google Apps Script trata melhor POST para APIs
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({ action: action, data: payload })
       };
       
-      // Se for apenas leitura, usamos GET (opcional, mas mantive POST para simplicidade)
-      if (action === 'GET_DASHBOARD') {
-         const response = await fetch(API_URL);
-         const json = await response.json();
-         if (json.success) return json.data;
-         else throw new Error(json.error);
-      }
-
       const response = await fetch(API_URL, options);
       const json = await response.json();
       
