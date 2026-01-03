@@ -33,12 +33,13 @@
     @keyframes slideIn { from{transform:translateX(100%)} to{transform:translateX(0)} }
     #loader { position:fixed; inset:0; background:rgba(255,255,255,0.9); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:1000; }
     .spinner { width:40px; height:40px; border:4px solid #eee; border-top-color:var(--primary); border-radius:50%; animation:spin 1s linear infinite; }
+    @keyframes spin { to{transform:rotate(360deg)} }
     tr.valid { background:#f6fffa; }
     tr.valid td { color:#137333; }
   </style>
 </head>
 <body>
-  <div id="loader"><div class="spinner"></div><p style="margin-top:15px;color:#666;font-weight:600">CONECTANDO...</p></div>
+  <div id="loader"><div class="spinner"></div><p style="margin-top:15px;color:#666;font-weight:600">SINCRONIZANDO DADOS...</p></div>
   
   <div class="sidebar">
     <div class="brand"><span class="material-icons-round">grid_view</span> ERP MANAGER</div>
@@ -47,7 +48,7 @@
   <div class="main">
     <div class="header">
       <div class="search"><span class="material-icons-round" style="color:#999">search</span><input id="search" placeholder="Pesquisar..." onkeyup="filter()"></div>
-      <div style="font-weight:600; font-size:13px">Admin User (GitHub)</div>
+      <div style="font-weight:600; font-size:13px">Admin User</div>
     </div>
     <div class="content">
       <div class="kpi-grid">
@@ -74,7 +75,7 @@
             </thead>
             <tbody id="tbody"></tbody>
           </table>
-          <div id="empty" style="display:none;padding:50px;text-align:center;color:#999">Nenhum registro.</div>
+          <div id="empty" style="display:none;padding:50px;text-align:center;color:#999">Nenhum registro encontrado.</div>
         </div>
       </div>
     </div>
@@ -82,6 +83,7 @@
   <div id="toast-box"></div>
 
   <script>
+    // URL DA SUA API (Substitua se gerar uma nova)
     const API_URL = "https://script.google.com/macros/s/AKfycbw0QOu3LojG65Czx0V1uQ_zN7gmkw4bKnEXO3OSWGzATmjiwv6Fou2OsluqgEkqzItu/exec"; 
 
     let data = [];
@@ -90,17 +92,21 @@
     async function apiCall(action, payload = {}) {
       const options = {
         method: 'POST',
-        // 'text/plain' evita o erro de CORS Preflight no Google Apps Script
+        // 'text/plain' é a chave para evitar erro de CORS no Google
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({ action: action, data: payload })
       };
       
-      const response = await fetch(API_URL, options);
-      if (!response.ok) throw new Error("Falha na resposta da API");
-      const json = await response.json();
-      
-      if (json.success) return json.data;
-      throw new Error(json.error || "Erro na API");
+      try {
+        const response = await fetch(API_URL, options);
+        if (!response.ok) throw new Error("Erro na rede ou URL inválida.");
+        const json = await response.json();
+        if (json.success) return json.data;
+        throw new Error(json.error || "Erro interno na API.");
+      } catch (e) {
+        console.error(e);
+        throw e;
+      }
     }
 
     async function load() {
@@ -109,31 +115,49 @@
         data = await apiCall('GET_DASHBOARD');
         render(data);
         kpis(data);
-        toast("Sincronizado com Google Sheets.", "ok");
+        toast("Dados carregados com sucesso.", "ok");
       } catch(e) {
-        toast("Erro: " + e.message, "err");
+        toast("Falha na conexão: " + e.message, "err");
       }
       loading(false);
     }
 
     async function validate() {
       const ids = [...document.querySelectorAll('.chk:checked')].map(c => c.value);
-      if(!ids.length) return toast("Selecione itens.", "warn");
+      if(!ids.length) return toast("Selecione ao menos um item.", "warn");
       loading(true);
-      try { await apiCall('VALIDATE_TICKET', {ids}); load(); } catch(e) { toast(e.message, "err"); loading(false); }
+      try { 
+        await apiCall('VALIDATE_TICKET', {ids}); 
+        await load(); 
+      } catch(e) { 
+        toast(e.message, "err"); 
+        loading(false); 
+      }
     }
 
     async function edit(id, old) {
-      const val = prompt("Novo Status:", old);
+      const val = prompt("Atualizar Status:", old);
       if(val === null || val === old) return;
       loading(true);
-      try { await apiCall('UPDATE_STATUS', {id, status:val}); load(); } catch(e) { toast(e.message, "err"); loading(false); }
+      try { 
+        await apiCall('UPDATE_STATUS', {id, status:val}); 
+        await load(); 
+      } catch(e) { 
+        toast(e.message, "err"); 
+        loading(false); 
+      }
     }
     
     async function del(id) {
-      if(!confirm("Excluir?")) return;
+      if(!confirm("Deseja realmente excluir este registro?")) return;
       loading(true);
-      try { await apiCall('DELETE_TICKET', {id}); load(); } catch(e) { toast(e.message, "err"); loading(false); }
+      try { 
+        await apiCall('DELETE_TICKET', {id}); 
+        await load(); 
+      } catch(e) { 
+        toast(e.message, "err"); 
+        loading(false); 
+      }
     }
 
     function render(rows) {
@@ -151,8 +175,8 @@
           <td>${r.isValidado ? '<span style="color:#107e3e;font-weight:700">✓ Validado</span>' : r.obsFluxo}</td>
           <td>${r.responsavel}</td>
           <td>${r.permanencia}</td>
-          <td onclick="edit('${r.id}','${r.status}')" style="cursor:pointer;text-decoration:underline">${r.status||'Editar...'}</td>
-          <td><span onclick="del('${r.id}')" style="cursor:pointer;color:#bb0000">✕</span></td>
+          <td onclick="edit('${r.id}','${r.status}')" style="cursor:pointer;text-decoration:underline">${r.status || 'Adicionar...'}</td>
+          <td><span onclick="del('${r.id}')" style="cursor:pointer;color:#bb0000;font-weight:bold">✕</span></td>
         `;
         tb.appendChild(tr);
       });
@@ -160,24 +184,33 @@
 
     function kpis(d) {
       document.getElementById('k-total').innerText = d.length;
-      document.getElementById('k-valid').innerText = d.filter(x=>x.isValidado).length;
-      document.getElementById('k-pend').innerText = d.filter(x=>!x.isValidado).length;
+      document.getElementById('k-valid').innerText = d.filter(x => x.isValidado).length;
+      document.getElementById('k-pend').innerText = d.filter(x => !x.isValidado).length;
     }
 
     function filter() {
       const term = document.getElementById('search').value.toLowerCase();
-      render(data.filter(r => Object.values(r).some(v => String(v).toLowerCase().includes(term))));
+      const filtered = data.filter(r => 
+        Object.values(r).some(v => String(v).toLowerCase().includes(term))
+      );
+      render(filtered);
     }
 
-    function toggle(src) { document.querySelectorAll('.chk').forEach(c => c.checked = src.checked); }
-    function loading(show) { document.getElementById('loader').style.display = show ? 'flex' : 'none'; }
+    function toggle(src) { 
+      document.querySelectorAll('.chk').forEach(c => c.checked = src.checked); 
+    }
+
+    function loading(show) { 
+      document.getElementById('loader').style.display = show ? 'flex' : 'none'; 
+    }
+
     function toast(msg, type) {
       const t = document.createElement('div');
       t.className = 'toast';
       t.innerText = msg;
-      t.style.borderLeftColor = type=='err'?'#bb0000':(type=='ok'?'#107e3e':'#e9730c');
+      t.style.borderLeftColor = type == 'err' ? '#bb0000' : (type == 'ok' ? '#107e3e' : '#e9730c');
       document.getElementById('toast-box').appendChild(t);
-      setTimeout(()=>t.remove(), 4000);
+      setTimeout(() => t.remove(), 4000);
     }
   </script>
 </body>
