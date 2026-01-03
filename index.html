@@ -5,473 +5,176 @@
   <title>ERP CT70 Manager</title>
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  
   <style>
-    :root {
-      /* Tema Claro ERP Enterprise (SAP Style) */
-      --bg-body: #eff3f6;       
-      --bg-panel: #ffffff;      
-      --bg-sidebar: #ffffff;    
-      --border: #d1dbe5;        
-      --primary: #0a6ed1;       
-      --primary-hover: #005aae; 
-      --text-main: #32363a;     
-      --text-muted: #6a7682;    
-      --success: #107e3e;       
-      --danger: #bb0000;        
-      --warning: #e9730c;       
-      --shadow: 0 1px 2px rgba(0,0,0,0.05); 
-    }
-
-    * { box-sizing: border-box; outline: none; }
-    
-    body {
-      font-family: 'Inter', sans-serif;
-      background-color: var(--bg-body);
-      color: var(--text-main);
-      margin: 0;
-      height: 100vh;
-      display: flex;
-      overflow: hidden;
-    }
-
-    /* === SIDEBAR === */
-    .sidebar {
-      width: 250px;
-      background-color: var(--bg-sidebar);
-      border-right: 1px solid var(--border);
-      display: flex;
-      flex-direction: column;
-      flex-shrink: 0;
-      z-index: 10;
-    }
-
-    .brand {
-      height: 64px;
-      padding: 0 24px;
-      font-size: 18px;
-      font-weight: 700;
-      color: var(--primary);
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      border-bottom: 1px solid var(--border);
-    }
-    
-    .nav-item {
-      padding: 12px 24px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      color: var(--text-muted);
-      cursor: pointer;
-      transition: all 0.2s;
-      font-size: 14px;
-      font-weight: 500;
-      border-left: 4px solid transparent;
-    }
-
-    .nav-item:hover { background: #f5f8fa; color: var(--primary); }
-    .nav-item.active {
-      background: #f0f7ff;
-      color: var(--primary);
-      border-left-color: var(--primary);
-      font-weight: 600;
-    }
-
-    /* === MAIN === */
-    .main-content {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
-
-    .top-header {
-      height: 64px;
-      background: var(--bg-panel);
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 32px;
-    }
-
-    .search-bar {
-      display: flex;
-      align-items: center;
-      background: #f2f4f7;
-      padding: 8px 16px;
-      border-radius: 6px;
-      width: 380px;
-      border: 1px solid transparent;
-      transition: all 0.2s;
-    }
-    .search-bar:focus-within { border-color: var(--primary); background: #fff; }
-    .search-bar input {
-      background: transparent; border: none; color: var(--text-main);
-      margin-left: 10px; width: 100%; font-family: inherit;
-    }
-
-    .view-container {
-      padding: 32px;
-      overflow-y: auto;
-      flex: 1;
-    }
-
-    /* KPI */
-    .kpi-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 24px;
-      margin-bottom: 32px;
-    }
-
-    .kpi-card {
-      background: var(--bg-panel);
-      padding: 24px;
-      border-radius: 8px;
-      border: 1px solid var(--border);
-      display: flex;
-      flex-direction: column;
-      box-shadow: var(--shadow);
-      position: relative;
-    }
-    
-    .kpi-label { font-size: 12px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; }
-    .kpi-value { font-size: 28px; font-weight: 700; margin-top: 8px; color: var(--text-main); }
-
-    /* GRID */
-    .datagrid-container {
-      background: var(--bg-panel);
-      border-radius: 8px;
-      border: 1px solid var(--border);
-      display: flex;
-      flex-direction: column;
-      height: calc(100vh - 300px);
-      box-shadow: var(--shadow);
-    }
-
-    .datagrid-toolbar {
-      padding: 16px 24px;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background: #fbfcfd;
-    }
-
-    .btn {
-      padding: 8px 16px; border-radius: 4px; border: 1px solid transparent;
-      font-size: 13px; font-weight: 600; cursor: pointer;
-      display: inline-flex; align-items: center; gap: 8px; transition: all 0.2s;
-    }
-    .btn-primary { background: var(--primary); color: white; }
-    .btn-primary:hover { background: var(--primary-hover); }
-    .btn-outline { background: white; border-color: var(--border); color: var(--text-muted); }
-    .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
-
-    .table-responsive { overflow: auto; flex: 1; }
-
-    table { width: 100%; border-collapse: collapse; font-size: 13px; white-space: nowrap; }
-    th {
-      background: #f7f9fb; text-align: left; padding: 14px 24px;
-      color: var(--text-muted); font-weight: 700; position: sticky; top: 0;
-      border-bottom: 1px solid var(--border); font-size: 11px; text-transform: uppercase;
-    }
-    td { padding: 14px 24px; border-bottom: 1px solid #edf2f7; vertical-align: middle; }
-    tr:hover { background: #f8fafc; }
-
-    /* Utilities */
-    .badge { padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 700; }
-    .badge-ok { background: #e6f4ea; color: #137333; border: 1px solid #ceead6; }
-    .badge-pending { background: #fef7e0; color: #b06000; border: 1px solid #feebc8; }
-    
-    tr.validated td { color: #137333; }
-    tr.validated { background: #f6fffa; }
-
-    /* Loading */
-    #loading-overlay {
-      position: fixed; inset: 0; background: rgba(255,255,255,0.9);
-      display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 9999;
-    }
-    .spinner {
-      width: 40px; height: 40px; border: 4px solid #e0e0e0;
-      border-top-color: var(--primary); border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    /* Toast */
-    #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 1000; }
-    .toast {
-      background: white; border-left: 4px solid var(--primary); color: var(--text-main);
-      padding: 15px 20px; border-radius: 4px; box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-      margin-top: 10px; display: flex; align-items: center; gap: 10px; font-size: 14px;
-      animation: slideIn 0.3s ease; border: 1px solid var(--border);
-    }
-    @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
-
-    .action-icon { cursor: pointer; padding: 6px; border-radius: 4px; color: var(--text-muted); }
-    .action-icon:hover { background: #e8f0fe; color: var(--primary); }
+    :root { --bg:#eff3f6; --panel:#fff; --primary:#0a6ed1; --text:#32363a; --border:#d1dbe5; }
+    body { font-family:'Inter', sans-serif; background:var(--bg); color:var(--text); margin:0; height:100vh; display:flex; }
+    .sidebar { width:250px; background:var(--panel); border-right:1px solid var(--border); display:flex; flex-direction:column; }
+    .brand { height:64px; display:flex; align-items:center; padding:0 24px; color:var(--primary); font-weight:700; border-bottom:1px solid var(--border); gap:10px; }
+    .main { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+    .header { height:64px; background:var(--panel); border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; padding:0 32px; }
+    .search { background:#f2f4f7; padding:8px 16px; border-radius:6px; display:flex; align-items:center; width:300px; }
+    .search input { border:none; background:transparent; margin-left:10px; width:100%; outline:none; }
+    .content { padding:32px; overflow-y:auto; flex:1; }
+    .kpi-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:20px; margin-bottom:30px; }
+    .card { background:var(--panel); padding:20px; border-radius:8px; border:1px solid var(--border); box-shadow:0 1px 3px rgba(0,0,0,0.05); text-align: center;}
+    .kpi-val { font-size: 2em; font-weight: bold; margin-top: 10px; }
+    .grid { background:var(--panel); border-radius:8px; border:1px solid var(--border); overflow:hidden; display:flex; flex-direction:column; height:calc(100vh - 300px); }
+    .toolbar { padding:15px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; }
+    .table-box { overflow:auto; flex:1; }
+    table { width:100%; border-collapse:collapse; font-size:13px; white-space:nowrap; }
+    th { background:#f7f9fb; padding:12px 20px; text-align:left; position:sticky; top:0; border-bottom:1px solid var(--border); color:#6a7682; font-weight:600; font-size:11px; text-transform:uppercase; }
+    td { padding:12px 20px; border-bottom:1px solid #edf2f7; color:var(--text); }
+    tr:hover { background:#f8fafc; }
+    .btn { padding:8px 16px; border-radius:4px; font-weight:600; font-size:13px; cursor:pointer; border:1px solid transparent; }
+    .btn-primary { background:var(--primary); color:#fff; }
+    .btn-outline { background:#fff; border-color:var(--border); color:#6a7682; }
+    #toast-box { position:fixed; bottom:20px; right:20px; z-index:999; }
+    .toast { background:#fff; padding:15px 20px; border-radius:4px; box-shadow:0 5px 15px rgba(0,0,0,0.1); margin-top:10px; border-left:4px solid var(--primary); animation:slideIn 0.3s; }
+    @keyframes slideIn { from{transform:translateX(100%)} to{transform:translateX(0)} }
+    #loader { position:fixed; inset:0; background:rgba(255,255,255,0.9); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:1000; }
+    .spinner { width:40px; height:40px; border:4px solid #eee; border-top-color:var(--primary); border-radius:50%; animation:spin 1s linear infinite; }
+    @keyframes spin { to{transform:rotate(360deg)} }
+    .badge { padding:4px 8px; border-radius:4px; font-size:11px; font-weight:700; }
+    .ok { background:#e6f4ea; color:#137333; }
+    .pend { background:#fef7e0; color:#b06000; }
+    tr.valid { background:#f6fffa; }
+    tr.valid td { color:#137333; }
   </style>
 </head>
 <body>
-
-  <div id="loading-overlay">
-    <div class="spinner"></div>
-    <div style="margin-top:15px; font-weight:600; color:#6a7682; font-size:13px">CARREGANDO SISTEMA...</div>
+  <div id="loader"><div class="spinner"></div><p style="margin-top:15px;color:#666;font-weight:600">CARREGANDO SISTEMA...</p></div>
+  
+  <div class="sidebar">
+    <div class="brand"><span class="material-icons-round">grid_view</span> ERP MANAGER</div>
   </div>
 
-  <aside class="sidebar">
-    <div class="brand">
-      <span class="material-icons-round">grid_view</span> ERP MANAGER
+  <div class="main">
+    <div class="header">
+      <div class="search"><span class="material-icons-round" style="color:#999">search</span><input id="search" placeholder="Pesquisar..." onkeyup="filter()"></div>
+      <div style="font-weight:600; font-size:13px">Admin User</div>
     </div>
-    <nav>
-      <div class="nav-item active">
-        <span class="material-icons-round">analytics</span> Dashboard
-      </div>
-      <div class="nav-item">
-        <span class="material-icons-round">inventory_2</span> Estoque
-      </div>
-      <div class="nav-item">
-        <span class="material-icons-round">settings</span> Configurações
-      </div>
-    </nav>
-  </aside>
-
-  <main class="main-content">
-    <header class="top-header">
-      <div class="search-bar">
-        <span class="material-icons-round" style="color:var(--text-muted)">search</span>
-        <input type="text" id="globalSearch" placeholder="Pesquisar..." onkeyup="filtrarGrid()">
-      </div>
-      <div style="font-size:13px; font-weight:600; color:var(--text-main)">Admin User</div>
-    </header>
-
-    <div class="view-container">
-      
+    <div class="content">
       <div class="kpi-grid">
-        <div class="kpi-card" style="border-top: 4px solid var(--primary)">
-          <span class="kpi-label">Total Registros</span>
-          <span class="kpi-value" id="kpi-total">0</span>
-        </div>
-        <div class="kpi-card" style="border-top: 4px solid var(--success)">
-          <span class="kpi-label">Validados</span>
-          <span class="kpi-value" id="kpi-valid" style="color:var(--success)">0</span>
-        </div>
-        <div class="kpi-card" style="border-top: 4px solid var(--warning)">
-          <span class="kpi-label">Pendentes</span>
-          <span class="kpi-value" id="kpi-pending" style="color:var(--warning)">0</span>
-        </div>
-        <div class="kpi-card" style="border-top: 4px solid #7049ba">
-          <span class="kpi-label">Média Dias</span>
-          <span class="kpi-value" id="kpi-perm" style="color:#7049ba">0</span>
-        </div>
+        <div class="card" style="border-top:4px solid var(--primary)"><div>TOTAL</div><div id="k-total" class="kpi-val">0</div></div>
+        <div class="card" style="border-top:4px solid #107e3e"><div>VALIDADOS</div><div id="k-valid" class="kpi-val" style="color:#107e3e">0</div></div>
+        <div class="card" style="border-top:4px solid #e9730c"><div>PENDENTES</div><div id="k-pend" class="kpi-val" style="color:#e9730c">0</div></div>
       </div>
-
-      <div class="datagrid-container">
-        <div class="datagrid-toolbar">
-          <h3 style="margin:0; font-size:16px; font-weight:700; color:var(--text-main)">Gestão de Ordens</h3>
-          <div style="display:flex; gap:8px">
-            <button class="btn btn-outline" onclick="loadData()">Refresh</button>
-            <button class="btn btn-outline" onclick="limparValidacoes()">Reset</button>
-            <button class="btn btn-primary" onclick="validarSelecionados()">Validar</button>
+      
+      <div class="grid">
+        <div class="toolbar">
+          <h3 style="margin:0;font-size:15px">Gestão de Ordens</h3>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-outline" onclick="load()">Refresh</button>
+            <button class="btn btn-primary" onclick="validate()">Validar Seleção</button>
           </div>
         </div>
-        
-        <div class="table-responsive">
-          <table id="grid-table">
+        <div class="table-box">
+          <table id="table">
             <thead>
               <tr>
-                <th width="40" align="center"><input type="checkbox" id="check-all" onchange="toggleAll(this)"></th>
-                <th>Ordem</th>
-                <th>Status Final</th>
-                <th>Observação Fluxo</th>
-                <th>Responsável</th>
-                <th>Permanência</th>
-                <th>Aging</th>
-                <th>Obs Custom</th>
-                <th align="right">Ações</th>
+                <th width="40"><input type="checkbox" onchange="toggle(this)"></th>
+                <th>Ordem</th><th>Status Final</th><th>Obs. Fluxo</th><th>Resp.</th><th>Perm.</th><th>Status</th><th>Ações</th>
               </tr>
             </thead>
-            <tbody id="grid-body"></tbody>
+            <tbody id="tbody"></tbody>
           </table>
-          <div id="empty-state" style="display:none; padding:50px; text-align:center; color:#999">
-            <span class="material-icons-round" style="font-size:48px; color:#ddd">inbox</span><br>
-            Nenhum registro encontrado.
-          </div>
+          <div id="empty" style="display:none;padding:50px;text-align:center;color:#999">Nenhum registro.</div>
         </div>
       </div>
     </div>
-  </main>
-
-  <div id="toast-container"></div>
+  </div>
+  <div id="toast-box"></div>
 
   <script>
-    let appData = [];
+    let data = [];
+    window.onload = load;
 
-    document.addEventListener("DOMContentLoaded", () => {
-      loadData();
-    });
-
-    function apiCall(endpoint, payload = {}) {
+    function run(func, payload={}) {
       return new Promise((resolve, reject) => {
-        // ESSA FUNÇÃO SÓ EXISTE DENTRO DO GOOGLE APPS SCRIPT
-        if (typeof google === 'undefined' || !google.script) {
-            return reject("ERRO CRÍTICO: Este site deve rodar dentro do Google Apps Script. Não funciona no GitHub/Localhost.");
-        }
-        
+        if (typeof google === 'undefined') return reject("ERRO CRÍTICO: Use o Google Apps Script, não o GitHub.");
         google.script.run
-          .withSuccessHandler(res => {
-            if (res.success) {
-               resolve(res.data);
-            } else {
-               reject(res.error); 
-            }
-          })
-          .withFailureHandler(err => reject(err.message || err))
-          .api(endpoint, payload);
+          .withSuccessHandler(r => r.success ? resolve(r.data) : reject(r.error))
+          .withFailureHandler(e => reject(e.message || e))
+          .api(func, payload);
       });
     }
 
-    async function loadData() {
-      toggleLoading(true);
+    async function load() {
+      loading(true);
       try {
-        const data = await apiCall('GET_DASHBOARD');
-        appData = data || [];
-        renderGrid(appData);
-        updateKPIs(appData);
-        showToast("Dados carregados com sucesso", "success");
-      } catch (err) {
-        showToast(err, "error");
-        renderGrid([]);
-      } finally {
-        toggleLoading(false);
+        data = await run('GET_DASHBOARD');
+        render(data);
+        kpis(data);
+        toast("Dados atualizados.", "ok");
+      } catch(e) {
+        toast(e, "err");
+        render([]);
       }
+      loading(false);
     }
 
-    async function validarSelecionados() {
-      const selected = Array.from(document.querySelectorAll('.row-check:checked')).map(cb => cb.value);
-      if (selected.length === 0) return showToast("Selecione itens", "warning");
-      
-      toggleLoading(true);
-      try {
-        await apiCall('VALIDATE_TICKET', { ids: selected });
-        loadData();
-      } catch(err) {
-        showToast(err, "error");
-        toggleLoading(false);
-      }
+    async function validate() {
+      const ids = [...document.querySelectorAll('.chk:checked')].map(c => c.value);
+      if(!ids.length) return toast("Selecione itens.", "warn");
+      loading(true);
+      try { await run('VALIDATE_TICKET', {ids}); load(); } catch(e) { toast(e, "err"); loading(false); }
     }
 
-    async function atualizarObs(id, oldVal) {
-      const novo = prompt("Nova observação:", oldVal);
-      if (novo === null || novo === oldVal) return;
-      toggleLoading(true);
-      try {
-        await apiCall('UPDATE_STATUS', { id: id, status: novo });
-        loadData();
-      } catch(err) {
-        showToast(err, "error");
-        toggleLoading(false);
-      }
+    async function edit(id, old) {
+      const val = prompt("Novo Status:", old);
+      if(val === null || val === old) return;
+      loading(true);
+      try { await run('UPDATE_STATUS', {id, status:val}); load(); } catch(e) { toast(e, "err"); loading(false); }
     }
     
-    async function excluir(id) {
-        if(!confirm("Excluir item?")) return;
-        toggleLoading(true);
-        try {
-            await apiCall('DELETE_TICKET', { id: id });
-            loadData();
-        } catch(err) {
-            showToast(err, "error");
-            toggleLoading(false);
-        }
+    async function del(id) {
+      if(!confirm("Excluir?")) return;
+      loading(true);
+      try { await run('DELETE_TICKET', {id}); load(); } catch(e) { toast(e, "err"); loading(false); }
     }
 
-    async function limparValidacoes() {
-        if(!confirm("Resetar todas as validações?")) return;
-        toggleLoading(true);
-        try {
-            await apiCall('CLEAR_VALIDATIONS');
-            loadData();
-        } catch(err) {
-            showToast(err, "error");
-            toggleLoading(false);
-        }
-    }
-
-    function renderGrid(data) {
-      const tbody = document.getElementById("grid-body");
-      const empty = document.getElementById("empty-state");
-      tbody.innerHTML = "";
-
-      if (!data || data.length === 0) {
-        empty.style.display = 'block';
-        return;
-      }
-      empty.style.display = 'none';
-
-      data.forEach(row => {
-        const tr = document.createElement("tr");
-        if (row.isValidado) tr.classList.add("validated");
-
-        const obsIcon = row.isValidado 
-          ? `<span style="color:var(--success); font-weight:700; display:flex; align-items:center; gap:5px"><span class="material-icons-round" style="font-size:16px">check_circle</span> Validado</span>`
-          : row.obsFluxo;
-
+    function render(rows) {
+      const tb = document.getElementById('tbody');
+      tb.innerHTML = '';
+      document.getElementById('empty').style.display = rows.length ? 'none' : 'block';
+      
+      rows.forEach(r => {
+        const tr = document.createElement('tr');
+        if(r.isValidado) tr.className = 'valid';
         tr.innerHTML = `
-          <td align="center"><input type="checkbox" class="row-check" value="${row.id}"></td>
-          <td style="font-weight:700; color:var(--primary)">${row.id}</td>
-          <td>${row.statusFinal}</td>
-          <td>${obsIcon}</td>
-          <td>${row.responsavel}</td>
-          <td>${row.permanencia}</td>
-          <td>${row.aging}</td>
-          <td onclick="atualizarObs('${row.id}', '${row.status||''}')" style="cursor:pointer">
-             ${row.status || '<span style="color:#ccc; font-style:italic">Editar...</span>'}
-          </td>
-          <td align="right">
-             <span class="material-icons-round action-icon" onclick="excluir('${row.id}')">delete</span>
-          </td>
+          <td><input type="checkbox" class="chk" value="${r.id}"></td>
+          <td style="font-weight:700">${r.id}</td>
+          <td>${r.statusFinal}</td>
+          <td>${r.isValidado ? '<span style="color:#107e3e;font-weight:700">✓ Validado</span>' : r.obsFluxo}</td>
+          <td>${r.responsavel}</td>
+          <td>${r.permanencia}</td>
+          <td onclick="edit('${r.id}','${r.status}')" style="cursor:pointer;text-decoration:underline">${r.status||'Editar...'}</td>
+          <td><span onclick="del('${r.id}')" style="cursor:pointer;color:#bb0000">✕</span></td>
         `;
-        tbody.appendChild(tr);
+        tb.appendChild(tr);
       });
     }
 
-    function updateKPIs(data) {
-      document.getElementById('kpi-total').innerText = data.length;
-      document.getElementById('kpi-valid').innerText = data.filter(d => d.isValidado).length;
-      document.getElementById('kpi-pending').innerText = data.filter(d => !d.isValidado).length;
-      
-      const total = data.reduce((acc, cur) => acc + (cur.permanencia || 0), 0);
-      const avg = data.length ? (total / data.length).toFixed(1) : 0;
-      document.getElementById('kpi-perm').innerText = avg;
+    function kpis(d) {
+      document.getElementById('k-total').innerText = d.length;
+      document.getElementById('k-valid').innerText = d.filter(x=>x.isValidado).length;
+      document.getElementById('k-pend').innerText = d.filter(x=>!x.isValidado).length;
     }
 
-    function filtrarGrid() {
-      const term = document.getElementById("globalSearch").value.toLowerCase();
-      const filtered = appData.filter(i => Object.values(i).some(v => String(v).toLowerCase().includes(term)));
-      renderGrid(filtered);
+    function filter() {
+      const term = document.getElementById('search').value.toLowerCase();
+      render(data.filter(r => Object.values(r).some(v => String(v).toLowerCase().includes(term))));
     }
 
-    function toggleAll(source) {
-      document.querySelectorAll('.row-check').forEach(cb => cb.checked = source.checked);
-    }
-
-    function toggleLoading(show) {
-      document.getElementById('loading-overlay').style.display = show ? 'flex' : 'none';
-    }
-
-    function showToast(msg, type = 'neutral') {
-      const container = document.getElementById('toast-container');
-      const toast = document.createElement('div');
-      toast.className = 'toast';
-      toast.style.borderLeftColor = type === 'success' ? 'var(--success)' : (type === 'error' ? 'var(--danger)' : 'var(--primary)');
-      toast.innerHTML = `<span>${msg}</span>`;
-      container.appendChild(toast);
-      setTimeout(() => toast.remove(), 5000);
+    function toggle(src) { document.querySelectorAll('.chk').forEach(c => c.checked = src.checked); }
+    function loading(show) { document.getElementById('loader').style.display = show ? 'flex' : 'none'; }
+    function toast(msg, type) {
+      const t = document.createElement('div');
+      t.className = 'toast';
+      t.innerText = msg;
+      t.style.borderLeftColor = type=='err'?'#bb0000':(type=='ok'?'#107e3e':'#e9730c');
+      document.getElementById('toast-box').appendChild(t);
+      setTimeout(()=>t.remove(), 4000);
     }
   </script>
 </body>
