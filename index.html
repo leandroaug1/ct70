@@ -317,6 +317,11 @@
 
     function apiCall(endpoint, payload = {}) {
       return new Promise((resolve, reject) => {
+        // ESSA FUNÇÃO SÓ EXISTE DENTRO DO GOOGLE APPS SCRIPT
+        if (typeof google === 'undefined' || !google.script) {
+            return reject("ERRO CRÍTICO: Este site deve rodar dentro do Google Apps Script. Não funciona no GitHub/Localhost.");
+        }
+        
         google.script.run
           .withSuccessHandler(res => {
             if (res.success) {
@@ -339,7 +344,7 @@
         updateKPIs(appData);
         showToast("Dados carregados com sucesso", "success");
       } catch (err) {
-        showToast("Erro: " + err, "error");
+        showToast(err, "error");
         renderGrid([]);
       } finally {
         toggleLoading(false);
@@ -355,7 +360,7 @@
         await apiCall('VALIDATE_TICKET', { ids: selected });
         loadData();
       } catch(err) {
-        showToast("Erro: " + err, "error");
+        showToast(err, "error");
         toggleLoading(false);
       }
     }
@@ -368,7 +373,7 @@
         await apiCall('UPDATE_STATUS', { id: id, status: novo });
         loadData();
       } catch(err) {
-        showToast("Erro: " + err, "error");
+        showToast(err, "error");
         toggleLoading(false);
       }
     }
@@ -380,7 +385,7 @@
             await apiCall('DELETE_TICKET', { id: id });
             loadData();
         } catch(err) {
-            showToast("Erro: " + err, "error");
+            showToast(err, "error");
             toggleLoading(false);
         }
     }
@@ -392,7 +397,7 @@
             await apiCall('CLEAR_VALIDATIONS');
             loadData();
         } catch(err) {
-            showToast("Erro: " + err, "error");
+            showToast(err, "error");
             toggleLoading(false);
         }
     }
